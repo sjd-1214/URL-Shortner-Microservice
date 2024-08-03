@@ -49,7 +49,7 @@ app.post("/api/shorturl", async (req, res) => {
       })
       // saving new Url
       let savedUrl = await newUrl.save();
-      return res.json({
+      res.json({
         original_url: savedUrl.original_url,
         short_url: savedUrl.short_url
       })
