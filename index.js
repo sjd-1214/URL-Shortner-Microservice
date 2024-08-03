@@ -23,35 +23,39 @@ app.get('/', function (req, res) {
 // Your first API endpoint
 app.post("/api/shorturl", async (req, res) => {
 
-  const original_url = req.body.url;
+  let original_url = req.body.url;
   // url validation
   if (!original_url) {
     return res.json({ error: "No URL provided" });
   }
 
-  try {
-    //checking url in data base
-    let existingUrl = await URL.findOne({ original_url: original_url });
-    if (existingUrl) {
-      res.json({
-        original_url: existingUrl.original_url,
-        short_url: existingUrl.short_url
+  original_url = original_url.toString();
+
+  if (original_url.startsWith("https://")) {
+    try {
+      //checking url in data base
+      let existingUrl = await URL.findOne({ original_url: original_url });
+      if (existingUrl) {
+        res.json({
+          original_url: existingUrl.original_url,
+          short_url: existingUrl.short_url
+        })
+      }
+      //create new url
+      let count = await URL.countDocuments({});
+      const newUrl = new URL({
+        original_url: original_url,
+        short_url: count + 1
       })
+      // saving new Url
+      let savedUrl = await newUrl.save();
+      res.json({
+        original_url: savedUrl.original_url,
+        short_url: savedUrl.short_url
+      })
+    } catch (err) {
+      return res.json({ error: "Database Error", error_desc: err });
     }
-    //create new url
-    let count = await URL.countDocuments({});
-    const newUrl = new URL({
-      original_url: original_url,
-      short_url: count + 1
-    })
-    // saving new Url
-    let savedUrl = await newUrl.save();
-    res.json({
-      original_url: savedUrl.original_url,
-      short_url: savedUrl.short_url
-    })
-  } catch (err) {
-    return res.json({ error: "Database Error", error_desc: err });
   }
 });
 
@@ -74,5 +78,4 @@ app.get('/api/shorturl/:short_url', async (req, res) => {
 app.listen(port, function () {
   console.log(`Listening on port ${port}`);
 });
-
 
