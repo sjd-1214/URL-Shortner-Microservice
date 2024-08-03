@@ -36,7 +36,7 @@ app.post("/api/shorturl", async (req, res) => {
       //checking url in data base
       let existingUrl = await URL.findOne({ original_url: original_url });
       if (existingUrl) {
-        res.json({
+        return res.json({
           original_url: existingUrl.original_url,
           short_url: existingUrl.short_url
         })
@@ -49,7 +49,7 @@ app.post("/api/shorturl", async (req, res) => {
       })
       // saving new Url
       let savedUrl = await newUrl.save();
-      res.json({
+      return res.json({
         original_url: savedUrl.original_url,
         short_url: savedUrl.short_url
       })
