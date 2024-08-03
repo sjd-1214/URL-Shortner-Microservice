@@ -56,6 +56,8 @@ app.post("/api/shorturl", async (req, res) => {
     } catch (err) {
       return res.json({ error: "Database Error", error_desc: err });
     }
+  } else {
+    return res.json({ error: "Invalid URL" });
   }
 });
 
