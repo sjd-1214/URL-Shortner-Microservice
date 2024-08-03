@@ -1,18 +1,20 @@
-require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const app = express();
-const dns = require('dns');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const URL = require('./models/url');
-app.use(bodyParser.urlencoded({ extended: false }));
-mongoose.connect('mongodb://localhost:27017/urlShortner', { useNewUrlParser: true });
+const dotenv = require('dotenv');
+const Url = require('./models/url');
+const validUrl = require('valid-url');
 
-// Basic Configuration
-const port = process.env.PORT || 3000;
+dotenv.config();
 
-app.use(cors());
+const app = express();
+const port =3000;
+
+mongoose.connect("mongodb://localhost:27017/urlShortner", {
+  useNewUrlParser: true
+});
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/public', express.static(`${process.cwd()}/public`));
 
@@ -20,64 +22,57 @@ app.get('/', function (req, res) {
   res.sendFile(process.cwd() + '/views/index.html');
 });
 
-// Your first API endpoint
-app.post("/api/shorturl", async (req, res) => {
+app.post('/api/shorturl', async (req, res) => {
+  const { url } = req.body;
 
-  let original_url = req.body.url;
-  // url validation
-  if (!original_url) {
-    return res.json({ error: "No URL provided" });
+  // Check if the URL is valid
+  if (!validUrl.isWebUri(url)) {
+    return res.json({ error: 'invalid url' });
   }
 
-  original_url = original_url.toString();
-
-  if (original_url.startsWith("https://")) {
-    try {
-      //checking url in data base
-      let existingUrl = await URL.findOne({ original_url: original_url });
-      if (existingUrl) {
-        return res.json({
-          original_url: existingUrl.original_url,
-          short_url: existingUrl.short_url
-        })
-      }
-      //create new url
-      let count = await URL.countDocuments({});
-      const newUrl = new URL({
-        original_url: original_url,
-        short_url: count + 1
-      })
-      // saving new Url
-      let savedUrl = await newUrl.save();
-      res.json({
-        original_url: savedUrl.original_url,
-        short_url: savedUrl.short_url
-      })
-    } catch (err) {
-      return res.json({ error: "Database Error", error_desc: err });
-    }
-  } else {
-    return res.json({ error: "Invalid URL" });
-  }
-});
-
-
-app.get('/api/shorturl/:short_url', async (req, res) => {
-  const short_url = req.params.short_url;
   try {
-    let data = await URL.findOne({ short_url });
-    if (!data) {
+    let existingUrl = await Url.findOne({ original_url: url });
+
+    if (existingUrl) {
       return res.json({
-        error: "Invalid URL"
-      })
+        original_url: existingUrl.original_url,
+        short_url: existingUrl.short_url
+      });
     }
-    res.redirect(data.original_url);
+
+    let count = await Url.countDocuments({});
+
+    const newUrl = new Url({ original_url: url, short_url: count+1 });
+
+    await newUrl.save();
+
+    res.json({
+      original_url: newUrl.original_url,
+      short_url: newUrl.short_url
+    });
   } catch (err) {
-    return res.json({ error: "Database Error", error_desc: err });
+    console.error(err);
+    res.status(500).json('Server error');
   }
 });
 
-app.listen(port, function () {
-  console.log(`Listening on port ${port}`);
+app.get('/api/shorturl/:shortUrl', async (req, res) => {
+  const shortUrl = req.params.shortUrl;
+
+  try {
+    const url = await Url.findOne({ short_url: shortUrl });
+
+    if (url) {
+      return res.redirect(url.original_url);
+    } else {
+      return res.json({ error: 'No short URL found for the given input' });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json('Server error');
+  }
 });
 
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
